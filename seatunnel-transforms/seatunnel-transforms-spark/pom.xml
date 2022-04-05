@@ -32,5 +32,6 @@
         <module>seatunnel-transform-spark-json</module>
         <module>seatunnel-transform-spark-split</module>
         <module>seatunnel-transform-spark-sql</module>
+        <module>seatunnel-transform-spark-cache</module>
     </modules>
 </project>

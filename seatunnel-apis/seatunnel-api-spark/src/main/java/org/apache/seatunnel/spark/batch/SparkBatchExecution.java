@@ -105,6 +105,11 @@ public class SparkBatchExecution implements Execution<SparkBatchSource, BaseSpar
                 sinkProcess(environment, sink, ds);
             }
         }
+        try {
+            Thread.sleep(500000);
+        } catch (InterruptedException interruptedException) {
+            interruptedException.printStackTrace();
+        }
     }
 
     @Override

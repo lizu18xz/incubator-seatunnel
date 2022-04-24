@@ -15,24 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.example.flink;
+package org.apache.seatunnel.spark.udf.custom.func;
 
-import static org.apache.seatunnel.utils.Engine.FLINK;
+import java.util.UUID;
+import org.apache.spark.sql.api.java.UDF0;
 
-import org.apache.seatunnel.Seatunnel;
-import org.apache.seatunnel.config.command.CommandLineArgs;
+public class UdfUUIDFunction implements UDF0<String> {
 
-public class LocalFlinkExample {
-
-    public static final String TEST_RESOURCE_DIR = "/seatunnel-examples/seatunnel-flink-examples/src/main/resources/examples/";
-
-    public static void main(String[] args) throws Exception {
-        String configFile = getTestConfigFile("kafka_to_console.conf");
-        CommandLineArgs flinkArgs = new CommandLineArgs(configFile, false, null);
-        Seatunnel.run(flinkArgs, FLINK);
-    }
-
-    public static String getTestConfigFile(String configFile) {
-        return System.getProperty("user.dir") + TEST_RESOURCE_DIR + configFile;
+    @Override
+    public String call() throws Exception {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

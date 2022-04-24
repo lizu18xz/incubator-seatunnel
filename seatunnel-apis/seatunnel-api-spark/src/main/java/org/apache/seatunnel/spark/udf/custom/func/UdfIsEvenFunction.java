@@ -15,24 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.example.flink;
+package org.apache.seatunnel.spark.udf.custom.func;
 
-import static org.apache.seatunnel.utils.Engine.FLINK;
+import org.apache.spark.sql.api.java.UDF1;
 
-import org.apache.seatunnel.Seatunnel;
-import org.apache.seatunnel.config.command.CommandLineArgs;
+public class UdfIsEvenFunction implements UDF1<Integer, Boolean> {
 
-public class LocalFlinkExample {
-
-    public static final String TEST_RESOURCE_DIR = "/seatunnel-examples/seatunnel-flink-examples/src/main/resources/examples/";
-
-    public static void main(String[] args) throws Exception {
-        String configFile = getTestConfigFile("kafka_to_console.conf");
-        CommandLineArgs flinkArgs = new CommandLineArgs(configFile, false, null);
-        Seatunnel.run(flinkArgs, FLINK);
+    @Override
+    public Boolean call(Integer n) throws Exception {
+        return n % 2 == 0;
     }
 
-    public static String getTestConfigFile(String configFile) {
-        return System.getProperty("user.dir") + TEST_RESOURCE_DIR + configFile;
-    }
 }

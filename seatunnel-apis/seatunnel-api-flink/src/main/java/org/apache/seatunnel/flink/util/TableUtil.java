@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.flink.util;
 
+import java.util.Arrays;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -59,9 +60,11 @@ public final class TableUtil {
     }
 
     public static boolean tableExists(TableEnvironment tableEnvironment, String name) {
-        String currentCatalog = tableEnvironment.getCurrentCatalog();
+        /*String currentCatalog = tableEnvironment.getCurrentCatalog();
         Catalog catalog = tableEnvironment.getCatalog(currentCatalog).get();
         ObjectPath objectPath = new ObjectPath(tableEnvironment.getCurrentDatabase(), name);
-        return catalog.tableExists(objectPath);
+        return catalog.tableExists(objectPath);*/
+        return Arrays.asList(tableEnvironment.listTables()).contains(name);
+
     }
 }

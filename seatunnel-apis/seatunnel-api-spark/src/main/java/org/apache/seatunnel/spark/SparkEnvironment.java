@@ -19,10 +19,9 @@ package org.apache.seatunnel.spark;
 
 import org.apache.seatunnel.common.config.CheckResult;
 import org.apache.seatunnel.env.RuntimeEnv;
-
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
-
+import org.apache.seatunnel.spark.udf.auto.SparkUdfRegedit;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.Seconds;
@@ -58,6 +57,12 @@ public class SparkEnvironment implements RuntimeEnv {
         SparkConf sparkConf = createSparkConf();
         this.sparkSession = SparkSession.builder().config(sparkConf).getOrCreate();
         createStreamingContext();
+        registerUdf();
+    }
+
+    private void registerUdf() {
+        SparkUdfRegedit register = new SparkUdfRegedit(this.sparkSession);
+        register.registerUdf();
     }
 
     public SparkSession getSparkSession() {
@@ -70,15 +75,18 @@ public class SparkEnvironment implements RuntimeEnv {
 
     private SparkConf createSparkConf() {
         SparkConf sparkConf = new SparkConf();
-        this.config.entrySet().forEach(entry -> sparkConf.set(entry.getKey(), String.valueOf(entry.getValue().unwrapped())));
+        this.config.entrySet().forEach(
+            entry -> sparkConf.set(entry.getKey(), String.valueOf(entry.getValue().unwrapped())));
         return sparkConf;
     }
 
     private void createStreamingContext() {
         SparkConf conf = this.sparkSession.sparkContext().getConf();
-        long duration = conf.getLong("spark.stream.batchDuration", DEFAULT_SPARK_STREAMING_DURATION);
+        long duration = conf
+            .getLong("spark.stream.batchDuration", DEFAULT_SPARK_STREAMING_DURATION);
         if (this.streamingContext == null) {
-            this.streamingContext = new StreamingContext(sparkSession.sparkContext(), Seconds.apply(duration));
+            this.streamingContext = new StreamingContext(sparkSession.sparkContext(),
+                Seconds.apply(duration));
         }
     }
 }

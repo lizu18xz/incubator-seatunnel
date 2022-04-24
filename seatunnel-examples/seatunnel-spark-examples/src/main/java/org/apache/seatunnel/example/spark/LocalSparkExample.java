@@ -27,7 +27,7 @@ public class LocalSparkExample {
     public static final String TEST_RESOURCE_DIR = "/seatunnel-examples/seatunnel-spark-examples/src/main/resources/examples/";
 
     public static void main(String[] args) throws Exception {
-        String configFile = getTestConfigFile("spark.batch2.conf");
+        String configFile = getTestConfigFile("spark.batch_udf.conf");
         CommandLineArgs sparkArgs = new CommandLineArgs(configFile, false, null);
         Seatunnel.run(sparkArgs, SPARK);
     }

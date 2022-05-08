@@ -26,4 +26,6 @@ public class UdfUUIDFunction implements UDF0<String> {
     public String call() throws Exception {
         return UUID.randomUUID().toString().replace("-", "");
     }
+
+
 }

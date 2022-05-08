@@ -18,7 +18,6 @@
 package org.apache.seatunnel.udf.generator;
 
 import com.google.auto.service.AutoService;
-import java.io.IOException;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
@@ -35,50 +34,44 @@ import javax.tools.Diagnostic;
 import org.apache.seatunnel.udf.constants.SupportType;
 import org.apache.seatunnel.udf.constants.UdfSupport;
 
+/**
+ * @author lizu
+ * @since 2022/5/7
+ */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.apache.seatunnel.udf.constants.UdfSupport")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class GeneralUdfClassProcess extends AbstractProcessor {
 
-    private Filer mfile;
+    private Filer filer;
 
     private Messager messager;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        mfile = processingEnv.getFiler();
+        filer = processingEnv.getFiler();
         messager = processingEnv.getMessager();
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         Set<? extends Element> set = roundEnv.getElementsAnnotatedWith(UdfSupport.class);
-        if (set.isEmpty())
-        {
+        if (set.isEmpty()) {
             return false;
         }
-        try
-        {
+        try {
             messager.printMessage(Diagnostic.Kind.NOTE, "begin to generate code");
-            for (Element next : set)
-            {
+            for (Element next : set) {
                 UdfSupport fun = next.getAnnotation(UdfSupport.class);
-                if (SupportType.FLINK == fun.type())
-                {
-                }
-                else if (SupportType.SPARK == fun.type())
-                {
-                    new SparkGenerator(fun.packageName(),messager).generateCode(mfile);
-                }
-                else
-                {
-                    throw new IllegalArgumentException("unknow type " + fun.type());
+                if (SupportType.FLINK == fun.type()) {
+                } else if (SupportType.SPARK == fun.type()) {
+                    new SparkGenerator(fun.packageName(), messager).generateCode(filer);
+                } else {
+                    throw new IllegalArgumentException("unKnow type " + fun.type());
                 }
             }
-        }
-        catch (IOException e)
-        {
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }

@@ -1,5 +1,6 @@
 package org.apache.seatunnel.udf.func;
 
+import java.util.Locale;
 import java.util.UUID;
 import org.apache.seatunnel.udf.constants.UdfFunction;
 
@@ -16,6 +17,17 @@ public class StringFunction {
     {
         throw new IllegalStateException("Utility class");
     }
+    /**
+     * 转小写
+     *
+     * @return
+     */
+    @UdfFunction("toLower_lz_udf")
+    public static String toLowerCase(String str)
+    {
+        return str.toLowerCase(Locale.ROOT);
+    }
+
 
     /**
      * 生成UUID字符串
@@ -40,5 +52,6 @@ public class StringFunction {
     {
         return (a == null || b == null) ? false : a.contains(b);
     }
+
 
 }

@@ -19,7 +19,6 @@ package org.apache.seatunnel.spark.udf.custom;
 
 
 import org.apache.seatunnel.spark.udf.custom.func.UdfIsEvenFunction;
-import org.apache.seatunnel.spark.udf.custom.func.UdfUUIDFunction;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
@@ -42,8 +41,8 @@ public class SparkUdfRegister {
         LOGGER.info("register udf");
         sparkSession.udf()
             .register("isEven_my_udf", new UdfIsEvenFunction(), DataTypes.BooleanType);
-        sparkSession.udf().register("UUID_my_udf", new UdfUUIDFunction(), DataTypes.StringType);
     }
+
 
 
 }

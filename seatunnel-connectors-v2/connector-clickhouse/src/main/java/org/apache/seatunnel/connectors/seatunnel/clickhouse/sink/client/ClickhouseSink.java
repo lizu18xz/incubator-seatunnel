@@ -29,7 +29,6 @@ import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.Config
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.Config.USERNAME;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
-import org.apache.seatunnel.api.common.SeaTunnelContext;
 import org.apache.seatunnel.api.serialization.DefaultSerializer;
 import org.apache.seatunnel.api.serialization.Serializer;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
@@ -67,7 +66,6 @@ import java.util.Properties;
 @AutoService(SeaTunnelSink.class)
 public class ClickhouseSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSinkState, CKCommitInfo, CKAggCommitInfo> {
 
-    private SeaTunnelContext seaTunnelContext;
     private ReaderOption option;
 
     @Override
@@ -78,7 +76,14 @@ public class ClickhouseSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSin
     @SuppressWarnings("checkstyle:MagicNumber")
     @Override
     public void prepare(Config config) throws PrepareFailException {
-        CheckResult result = CheckConfigUtil.checkAllExists(config, HOST, DATABASE, TABLE, USERNAME, PASSWORD);
+        CheckResult result = CheckConfigUtil.checkAllExists(config, HOST, DATABASE, TABLE);
+
+        boolean isCredential = config.hasPath(USERNAME) || config.hasPath(PASSWORD);
+
+        if (isCredential) {
+            result = CheckConfigUtil.checkAllExists(config, USERNAME, PASSWORD);
+        }
+
         if (!result.isSuccess()) {
             throw new PrepareFailException(getPluginName(), PluginType.SINK, result.getMsg());
         }
@@ -89,8 +94,14 @@ public class ClickhouseSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSin
 
         config = config.withFallback(ConfigFactory.parseMap(defaultConfig));
 
-        List<ClickHouseNode> nodes = ClickhouseUtil.createNodes(config.getString(HOST),
-                config.getString(DATABASE), config.getString(USERNAME), config.getString(PASSWORD));
+        List<ClickHouseNode> nodes;
+        if (!isCredential) {
+            nodes = ClickhouseUtil.createNodes(config.getString(HOST), config.getString(DATABASE),
+                    null, null);
+        } else {
+            nodes = ClickhouseUtil.createNodes(config.getString(HOST),
+                    config.getString(DATABASE), config.getString(USERNAME), config.getString(PASSWORD));
+        }
 
         Properties clickhouseProperties = new Properties();
         if (TypesafeConfigUtils.hasSubConfig(config, CLICKHOUSE_PREFIX)) {
@@ -98,8 +109,11 @@ public class ClickhouseSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSin
                 clickhouseProperties.put(e.getKey(), String.valueOf(e.getValue().unwrapped()));
             });
         }
-        clickhouseProperties.put("user", config.getString(USERNAME));
-        clickhouseProperties.put("password", config.getString(PASSWORD));
+
+        if (isCredential) {
+            clickhouseProperties.put("user", config.getString(USERNAME));
+            clickhouseProperties.put("password", config.getString(PASSWORD));
+        }
 
         ClickhouseProxy proxy = new ClickhouseProxy(nodes.get(0));
         Map<String, String> tableSchema = proxy.getClickhouseTableSchema(config.getString(TABLE));
@@ -117,13 +131,26 @@ public class ClickhouseSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSin
                 shardKeyType = tableSchema.get(shardKey);
             }
         }
-        ShardMetadata metadata = new ShardMetadata(
-                shardKey,
-                shardKeyType,
-                config.getString(DATABASE),
-                config.getString(TABLE),
-                config.getBoolean(SPLIT_MODE),
-                new Shard(1, 1, nodes.get(0)), config.getString(USERNAME), config.getString(PASSWORD));
+        ShardMetadata metadata;
+
+        if (isCredential) {
+            metadata = new ShardMetadata(
+                    shardKey,
+                    shardKeyType,
+                    config.getString(DATABASE),
+                    config.getString(TABLE),
+                    config.getBoolean(SPLIT_MODE),
+                    new Shard(1, 1, nodes.get(0)), config.getString(USERNAME), config.getString(PASSWORD));
+        } else {
+            metadata = new ShardMetadata(
+                    shardKey,
+                    shardKeyType,
+                    config.getString(DATABASE),
+                    config.getString(TABLE),
+                    config.getBoolean(SPLIT_MODE),
+                    new Shard(1, 1, nodes.get(0)));
+        }
+
         List<String> fields = new ArrayList<>();
         if (config.hasPath(FIELDS)) {
             fields.addAll(config.getStringList(FIELDS));
@@ -165,8 +192,4 @@ public class ClickhouseSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSin
         return this.option.getSeaTunnelRowType();
     }
 
-    @Override
-    public void setSeaTunnelContext(SeaTunnelContext seaTunnelContext) {
-        this.seaTunnelContext = seaTunnelContext;
-    }
 }

@@ -17,15 +17,15 @@
 
 package org.apache.seatunnel.core.starter.spark.execution;
 
-import org.apache.seatunnel.api.common.SeaTunnelContext;
+import org.apache.seatunnel.api.common.JobContext;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.core.starter.exception.TaskExecuteException;
 import org.apache.seatunnel.plugin.discovery.PluginIdentifier;
 import org.apache.seatunnel.plugin.discovery.seatunnel.SeaTunnelSinkPluginDiscovery;
 import org.apache.seatunnel.spark.SparkEnvironment;
+import org.apache.seatunnel.translation.spark.common.utils.TypeConverterUtils;
 import org.apache.seatunnel.translation.spark.sink.SparkSinkInjector;
-import org.apache.seatunnel.translation.spark.utils.TypeConverterUtils;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
@@ -43,8 +43,9 @@ public class SinkExecuteProcessor extends AbstractPluginExecuteProcessor<SeaTunn
     private static final String PLUGIN_TYPE = "sink";
 
     protected SinkExecuteProcessor(SparkEnvironment sparkEnvironment,
+                                   JobContext jobContext,
                                    List<? extends Config> pluginConfigs) {
-        super(sparkEnvironment, pluginConfigs);
+        super(sparkEnvironment, jobContext, pluginConfigs);
     }
 
     @Override
@@ -56,7 +57,7 @@ public class SinkExecuteProcessor extends AbstractPluginExecuteProcessor<SeaTunn
             pluginJars.addAll(sinkPluginDiscovery.getPluginJarPaths(Lists.newArrayList(pluginIdentifier)));
             SeaTunnelSink<?, ?, ?, ?> seaTunnelSink = sinkPluginDiscovery.createPluginInstance(pluginIdentifier);
             seaTunnelSink.prepare(sinkConfig);
-            seaTunnelSink.setSeaTunnelContext(SeaTunnelContext.getContext());
+            seaTunnelSink.setJobContext(jobContext);
             return seaTunnelSink;
         }).distinct().collect(Collectors.toList());
         sparkEnvironment.registerPlugin(pluginJars);

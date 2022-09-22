@@ -1,5 +1,7 @@
 # Flink SQL JDBC Connector
 
+> JDBC connector based flink sql
+
 ## Description
 
 We can use the Flink SQL JDBC Connector to connect to a JDBC database. Refer to the [Flink SQL JDBC Connector](https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/table/jdbc/index.html) for more information.
@@ -13,7 +15,7 @@ A driver dependency is also required to connect to a specified database. Here ar
 | Driver     | Group Id	         | Artifact Id	        | JAR           |
 |------------|-------------------|----------------------|---------------|
 | MySQL	     | mysql	         | mysql-connector-java | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
-| PostgreSQL | org.postgresql	 | postgresql	        | [Download](https://jdbc.postgresql.org/download.html) |
+| PostgreSQL | org.postgresql	 | postgresql	        | [Download](https://jdbc.postgresql.org/download/) |
 | Derby	     | org.apache.derby	 | derby	            | [Download](http://db.apache.org/derby/derby_downloads.html) |
 
 After downloading the driver jars, you need to place the jars into $FLINK_HOME/lib/.

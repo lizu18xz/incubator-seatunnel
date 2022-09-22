@@ -30,7 +30,6 @@ import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.Config
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.Config.USERNAME;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
-import org.apache.seatunnel.api.common.SeaTunnelContext;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
@@ -65,7 +64,6 @@ import java.util.stream.Collectors;
 @AutoService(SeaTunnelSink.class)
 public class ClickhouseFileSink implements SeaTunnelSink<SeaTunnelRow, ClickhouseSinkState, CKCommitInfo, CKAggCommitInfo> {
 
-    private SeaTunnelContext seaTunnelContext;
     private FileReaderOption readerOption;
 
     @Override
@@ -114,13 +112,16 @@ public class ClickhouseFileSink implements SeaTunnelSink<SeaTunnelRow, Clickhous
         } else {
             fields = new ArrayList<>(tableSchema.keySet());
         }
+        Map<String, String> nodeUser = config.getObjectList(NODE_PASS).stream()
+                .collect(Collectors.toMap(configObject -> configObject.toConfig().getString(NODE_ADDRESS),
+                    configObject -> configObject.toConfig().hasPath(USERNAME) ? configObject.toConfig().getString(USERNAME) : "root"));
         Map<String, String> nodePassword = config.getObjectList(NODE_PASS).stream()
                 .collect(Collectors.toMap(configObject -> configObject.toConfig().getString(NODE_ADDRESS),
                     configObject -> configObject.toConfig().getString(PASSWORD)));
 
         proxy.close();
         this.readerOption = new FileReaderOption(shardMetadata, tableSchema, fields, config.getString(CLICKHOUSE_LOCAL_PATH),
-                ClickhouseFileCopyMethod.from(config.getString(COPY_METHOD)), nodePassword);
+                ClickhouseFileCopyMethod.from(config.getString(COPY_METHOD)), nodeUser, nodePassword);
     }
 
     @Override
@@ -136,10 +137,5 @@ public class ClickhouseFileSink implements SeaTunnelSink<SeaTunnelRow, Clickhous
     @Override
     public SinkWriter<SeaTunnelRow, CKCommitInfo, ClickhouseSinkState> createWriter(SinkWriter.Context context) throws IOException {
         return new ClickhouseFileSinkWriter(readerOption, context);
-    }
-
-    @Override
-    public void setSeaTunnelContext(SeaTunnelContext seaTunnelContext) {
-        this.seaTunnelContext = seaTunnelContext;
     }
 }

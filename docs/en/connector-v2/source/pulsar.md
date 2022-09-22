@@ -1,8 +1,19 @@
 # Apache Pulsar
 
+> Apache Pulsar source connector
+
 ## Description
 
-Source connector for Apache Pulsar. It can support both off-line and real-time jobs.
+Source connector for Apache Pulsar.
+
+## Key features
+
+- [x] [batch](../../concept/connector-v2-features.md)
+- [x] [stream](../../concept/connector-v2-features.md)
+- [x] [exactly-once](../../concept/connector-v2-features.md)
+- [x] [schema projection](../../concept/connector-v2-features.md)
+- [x] [parallelism](../../concept/connector-v2-features.md)
+- [ ] [support user-defined split](../../concept/connector-v2-features.md)
 
 ##  Options
 

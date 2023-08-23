@@ -306,6 +306,7 @@ public class KafkaSourceSplitEnumerator
 
         readySplit.forEach(context::assignSplit);
 
+
         assignedSplit.putAll(pendingSplit);
         pendingSplit.clear();
     }

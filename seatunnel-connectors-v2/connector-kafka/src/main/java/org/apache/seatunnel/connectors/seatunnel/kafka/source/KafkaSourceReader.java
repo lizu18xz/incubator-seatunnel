@@ -196,7 +196,7 @@ public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSource
                                                                         record.value(), output);
                                                                 }
                                                             }
-                                                        } catch (IOException e) {
+                                                        } catch (Exception e) {
                                                             if (this.messageFormatErrorHandleWay
                                                                     == MessageFormatErrorHandleWay
                                                                             .SKIP) {

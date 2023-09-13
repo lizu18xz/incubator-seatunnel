@@ -17,11 +17,14 @@
 
 package org.apache.seatunnel.connectors.seatunnel.kafka.source;
 
+import java.util.ArrayList;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Boundedness;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.source.SourceReader;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.common.utils.JsonUtils;
+import org.apache.seatunnel.connectors.seatunnel.kafka.config.JsonField;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.MessageFormatErrorHandleWay;
 import org.apache.seatunnel.connectors.seatunnel.kafka.exception.KafkaConnectorErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.kafka.exception.KafkaConnectorException;
@@ -37,6 +40,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import com.jayway.jsonpath.ReadContext;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -50,12 +58,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
+import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
 
 @Slf4j
 public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSourceSplit> {
 
     private static final long THREAD_WAIT_TIME = 500L;
     private static final long POLL_TIMEOUT = 10000L;
+
+    private final JsonField jsonField;
 
     private final SourceReader.Context context;
     private final ConsumerMetadata metadata;
@@ -68,13 +80,24 @@ public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSource
 
     private final LinkedBlockingQueue<KafkaSourceSplit> pendingPartitionsQueue;
 
+    private JsonPath[] jsonPaths;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+
+    private static final Option[] DEFAULT_OPTIONS = {
+        Option.SUPPRESS_EXCEPTIONS, Option.ALWAYS_RETURN_LIST, Option.DEFAULT_PATH_LEAF_TO_NULL
+    };
+
+    private final Configuration jsonConfiguration =
+        Configuration.defaultConfiguration().addOptions(DEFAULT_OPTIONS);
+
     private volatile boolean running = false;
 
     KafkaSourceReader(
             ConsumerMetadata metadata,
             DeserializationSchema<SeaTunnelRow> deserializationSchema,
             Context context,
-            MessageFormatErrorHandleWay messageFormatErrorHandleWay) {
+            MessageFormatErrorHandleWay messageFormatErrorHandleWay,JsonField jsonField) {
         this.metadata = metadata;
         this.context = context;
         this.messageFormatErrorHandleWay = messageFormatErrorHandleWay;
@@ -85,6 +108,7 @@ public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSource
         this.executorService =
                 Executors.newCachedThreadPool(r -> new Thread(r, "Kafka Source Data Consumer"));
         pendingPartitionsQueue = new LinkedBlockingQueue<>();
+        this.jsonField = jsonField;
     }
 
     @Override
@@ -159,8 +183,18 @@ public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSource
                                                                         .deserialize(
                                                                                 record, output);
                                                             } else {
-                                                                deserializationSchema.deserialize(
+                                                                if (jsonField != null) {
+                                                                    JsonNode jsonNode = objectMapper
+                                                                        .readTree(record.value());
+                                                                    String data=jsonNode.toString();
+                                                                    this.initJsonPath(jsonField);
+                                                                    data = JsonUtils.toJsonString(parseToMap(decodeJSON(data), jsonField).get(0));
+                                                                    deserializationSchema.deserialize(
+                                                                        data.getBytes(), output);
+                                                                }else {
+                                                                    deserializationSchema.deserialize(
                                                                         record.value(), output);
+                                                                }
                                                             }
                                                         } catch (IOException e) {
                                                             if (this.messageFormatErrorHandleWay
@@ -211,6 +245,81 @@ public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSource
             // signal to the source that we have reached the end of the data.
             context.signalNoMoreElement();
         }
+    }
+
+    private void initJsonPath(JsonField jsonField) {
+        jsonPaths = new JsonPath[jsonField.getFields().size()];
+        for (int index = 0; index < jsonField.getFields().keySet().size(); index++) {
+            jsonPaths[index] =
+                JsonPath.compile(
+                    jsonField.getFields().values().toArray(new String[] {})[index]);
+        }
+    }
+
+    private List<Map<String, String>> parseToMap(List<List<String>> datas, JsonField jsonField) {
+        List<Map<String, String>> decodeDatas = new ArrayList<>(datas.size());
+        String[] keys = jsonField.getFields().keySet().toArray(new String[] {});
+
+        for (List<String> data : datas) {
+            Map<String, String> decodeData = new HashMap<>(jsonField.getFields().size());
+            final int[] index = {0};
+            data.forEach(
+                field -> {
+                    decodeData.put(keys[index[0]], field);
+                    index[0]++;
+                });
+            decodeDatas.add(decodeData);
+        }
+
+        return decodeDatas;
+    }
+
+    private List<List<String>> decodeJSON(String data) {
+        ReadContext jsonReadContext = JsonPath.using(jsonConfiguration).parse(data);
+        List<List<String>> results = new ArrayList<>(jsonPaths.length);
+        for (JsonPath path : jsonPaths) {
+            List<String> result = jsonReadContext.read(path);
+            results.add(result);
+        }
+        for (int i = 1; i < results.size(); i++) {
+            List<?> result0 = results.get(0);
+            List<?> result = results.get(i);
+            if (result0.size() != result.size()) {
+                throw new KafkaConnectorException(KafkaConnectorErrorCode.CONSUME_THREAD_RUN_ERROR,
+                    String.format(
+                        "[%s](%d) and [%s](%d) the number of parsing records is inconsistent.",
+                        jsonPaths[0].getPath(),
+                        result0.size(),
+                        jsonPaths[i].getPath(),
+                        result.size()));
+            }
+        }
+
+        return dataFlip(results);
+    }
+
+    private List<List<String>> dataFlip(List<List<String>> results) {
+
+        List<List<String>> datas = new ArrayList<>();
+        for (int i = 0; i < results.size(); i++) {
+            List<String> result = results.get(i);
+            if (i == 0) {
+                for (Object o : result) {
+                    String val = o == null ? null : o.toString();
+                    List<String> row = new ArrayList<>(jsonPaths.length);
+                    row.add(val);
+                    datas.add(row);
+                }
+            } else {
+                for (int j = 0; j < result.size(); j++) {
+                    Object o = result.get(j);
+                    String val = o == null ? null : o.toString();
+                    List<String> row = datas.get(j);
+                    row.add(val);
+                }
+            }
+        }
+        return datas;
     }
 
     @Override

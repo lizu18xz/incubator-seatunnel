@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.kafka.source;
 
+import org.apache.seatunnel.connectors.seatunnel.kafka.config.JsonField;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 import org.apache.seatunnel.shade.com.typesafe.config.ConfigRenderOptions;
@@ -90,6 +91,7 @@ public class KafkaSource
     private long discoveryIntervalMillis = KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS.defaultValue();
     private MessageFormatErrorHandleWay messageFormatErrorHandleWay =
             MessageFormatErrorHandleWay.FAIL;
+    protected JsonField jsonField;
 
     @Override
     public Boundedness getBoundedness() {
@@ -218,7 +220,7 @@ public class KafkaSource
     public SourceReader<SeaTunnelRow, KafkaSourceSplit> createReader(
             SourceReader.Context readerContext) throws Exception {
         return new KafkaSourceReader(
-                this.metadata, deserializationSchema, readerContext, messageFormatErrorHandleWay);
+                this.metadata, deserializationSchema, readerContext, messageFormatErrorHandleWay,jsonField);
     }
 
     @Override
@@ -251,6 +253,10 @@ public class KafkaSource
             switch (format) {
                 case JSON:
                     deserializationSchema = new JsonDeserializationSchema(false, false, typeInfo);
+                    if (config.hasPath("json_field")) {
+                        jsonField =
+                            getJsonField(config.getConfig("json_field"));
+                    }
                     break;
                 case TEXT:
                     String delimiter = DEFAULT_FIELD_DELIMITER;
@@ -294,5 +300,11 @@ public class KafkaSource
                             .delimiter(TextFormatConstant.PLACEHOLDER)
                             .build();
         }
+    }
+    private JsonField getJsonField(Config jsonFieldConf) {
+        ConfigRenderOptions options = ConfigRenderOptions.concise();
+        return JsonField.builder()
+            .fields(JsonUtils.toMap(jsonFieldConf.root().render(options)))
+            .build();
     }
 }
